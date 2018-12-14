@@ -1,0 +1,600 @@
+---
+title: "DATA 605 - FinalExam"
+author: "Paul Britton"
+date: "Dec 16, 2018"
+output:
+  html_document:
+    highlight: pygments
+    theme: cerulean
+    toc: TRUE
+    toc_float: TRUE
+    toc_collapsed: TRUE
+  pdf_document:
+    toc: yes
+---
+
+```{r housekeeping, message=F, echo=FALSE}
+rm(list = ls())
+library(knitr)
+library(psych)
+library(corrplot)
+library(gmodels)
+library(MASS)
+```
+
+All of the files and associated data for this final can be found on [my github here](https://github.com/plb2018/DATA605).  The required youtube video can be found [here](--add link--)
+
+
+
+# Problem 1
+
+Pick one of the quantitative independent variables (Xi) from the data set below, and define that variable as  X.  Also, pick one of the dependent variables (Yi) below, and define that as Y.
+
+
+## Load the Problem 1 Data
+
+Here I load the data, choose my X & Y and compute x & y.
+
+```{r}
+#saved the data from the exam doc to my github as .csv and load it form there
+p1.data = read.table("https://raw.githubusercontent.com/plb2018/DATA605/master/problem1Data.csv"
+                     ,sep=",",
+                     header=T)
+
+#display a few rows for inspection
+kable(head(p1.data,5))
+
+#my chosen variables
+X <- p1.data$X4
+Y <- p1.data$Y3
+XY <- as.data.frame(cbind(X,Y),colnames = c("X","Y"))
+
+#little x & y are 3rd and 1st quartiles respectively
+x <- quantile(X, 0.75)
+y <- quantile(Y, 0.25)
+
+```
+
+## Probability
+
+Calculate as a minimum the below probabilities a through c.  Assume the small letter "x" is estimated as the 3d quartile of the X variable, and the small letter "y" is estimated as the 1st quartile of the Y variable.  Interpret the meaning of all probabilities.
+
+a) $P(X>x|Y>y)$
+b) $P(X>x,Y>y)$
+c) $P(X<x|Y>y)$
+
+### Relevant Quantaties
+
+A few general/theoretical things that will be helpful for a-c:
+
+$$
+P(X>x) = 0.25\\
+P(X<x) = 0.75\\
+P(Y>y) = 0.75 \\
+P(Y<y) = 0.25 \\
+P(X>x \cap Y>y) = P(X>x) P(Y>y)  =0.1875\\
+P(X<x \cap Y>y) = P(X<x) P(Y>y)  =0.5625\\
+P(X>x \cup Y>y) = P(X>x) + P(Y>y) - P(X>x \cap Y>y) = 0.8125
+$$
+
+### a)
+
+Stated in words, we're looking for the probability that X>x given that Y>y.  Theoretically, we expect 25% of X values to be > the 3rd quartile (X>x) and 75% of Y values to be above the 1st quartile based on our knowledge of what quartiles represent, so the theoretical answer is:  
+
+$$
+P(X>x|Y>y) = \frac{P(X>x \cap Y>y)}{P(Y>y)} = \frac{0.1875}{0.75}\\
+P(X>x|Y>y) = 0.25
+$$
+
+Next we'll check computationally.  I realize that in this case, the set is so small enough that this knid of bootstrapping isn't nessecary, but I figured that I would attempt this one a few different ways anyway.  If we run the test using the actual data we get the following:
+
+```{r}
+itr <- 50000
+a.obs <- 0
+b.obs <- 0
+
+for (i in 1:itr){
+  a <- sample(X,1)
+  b<- sample(Y,1)
+  
+  if (b >y){
+      b.obs <- b.obs+1
+    if (a > x) {
+      a.obs <- a.obs+1
+    }
+  }
+}
+
+a.obs /b.obs
+
+```
+
+And if we run using a random probabilities we get:
+
+```{r}
+samples <- 50000
+trials <- matrix(runif(samples*2),nrow=samples,ncol=2)
+t2 <- trials[trials[,1] > 0.25,,drop=F] #subset cases that match the first condition
+t3 <- trials[trials[,2] > 0.75,,drop=F] #cases that match both conditions
+nrow(t3)/samples
+```
+
+We can see that the all three methods yield approximately the same result of 25%.
+
+
+### b)
+
+Stated in words, we're looking for the probability that both X>x and Y>y co-occur, or the intersection.  Once again, the theoretical answer, based on quartiles is:
+
+$$
+P(X>x,Y>y) = P(X>x) P(Y>y) = 0.75*0.25 = 0.1875\\
+$$
+We can check this another way by checking if the following relationship holds also:
+
+$$
+P(X>x,Y>y) = P(X>x|Y>y)P(X>x) = 0.25*0.75 = 0.1875\\
+$$
+
+
+In this case, we'll skip the bootstrapping as it's excessive here and just to straight to the emperical answer:
+
+```{r}
+nrow(XY[XY$X > x & XY$Y >y,])/20
+```
+
+We see that the answer is 20%, Which is approximately equal to the emperical solution of 18.75%
+
+
+And if we run using a random probabilities we get:
+
+```{r}
+samples <- 50000
+trials <- matrix(runif(samples*2),nrow=samples,ncol=2)
+t2 <- trials[trials[,1] > 0.25 & trials[,2] > 0.75 ,,drop=F] #cases that match both conditions
+dim(t2)[1]/samples
+```
+
+And based on this, we can say that 0.1875 appears to be correct
+
+### C)
+Similar to part a, but now we're looking for the probability that $X<x$ given that $Y>y$  
+
+$$
+P(X<x|Y>y) = \frac{P(X<x \cap Y>y)}{P(Y>y)} = \frac{0.5625}{0.75}\\
+P(X<x|Y>y) = 0.75\\
+$$
+
+And then we check computationally.  If we run the test using the actual data we get the following:
+
+```{r}
+XY1 <- XY[XY$Y >y,]  #first condition
+XY2 <- XY1[XY1$X<x,] #second condition
+
+nrow(XY2)/nrow(XY1)
+
+```
+
+
+And if we run using a random probabilities we get:
+
+```{r}
+samples <- 50000
+trials <- matrix(runif(samples*2),nrow=samples,ncol=2)
+t2 <- trials[trials[,1] > 0.25,,drop=F] #subset cases that match the first condition Y>y (>1st quartile)
+t3 <- t2[t2[,2] < 0.75,,drop=F] #cases that match both conditions 
+nrow(t3)/nrow(t2)
+```
+
+
+Once again, we see that we get 75%.
+
+
+## Make a table
+```{r}
+#get the data into a dataframe so we can subselect
+d <- data.frame(X,Y)
+
+#set up al the cases (done manually so as not to confuse myself)
+c1 <- dim(d[d$X <= quantile(X, 0.25) & d$Y <= quantile(Y, 0.75),])[1]
+c2 <- dim(d[d$X > quantile(X, 0.25) & d$Y <= quantile(Y, 0.75),])[1]
+c3 <- c1+c2
+c4 <- dim(d[d$X <= quantile(X, 0.25) & d$Y > quantile(Y, 0.75),])[1]
+c5 <- dim(d[d$X > quantile(X, 0.25) & d$Y > quantile(Y, 0.75),])[1]
+c6 <- c4+c5
+c7 <- c1+c4
+c8 <- c2+c5 
+c9 <- c3+c6
+
+#reshape and put it into a dataframe
+c <- matrix(c(c1,c2,c3,c4,c5,c6,c7,c8,c9),nrow=3)
+prob.table <- data.frame(c)
+
+#rename cols and rows
+colnames <- c('<= 3rd quartile','> 3rd quartile','Total') 
+rownames <- c('<= 1st quartile','>1st quartile','Total')
+rownames(prob.table) <- rownames
+colnames(prob.table) <- colnames
+
+#plot
+kable(prob.table)
+```
+
+
+## Train/Test/Split & Chi Square test
+
+Does splitting the training data in this fashion make them independent? Let A be the new variable counting those observations above the 1st quartile for X, and let B be the new variable counting those observations above the 1st quartile for Y.    Does P(AB)=P(A)P(B)?   Check mathematically, and then evaluate by running a Chi Square test for association.
+
+### Emperically
+
+If we run the actual numbers, we get the following:
+
+```{r}
+
+A <- length(X[X>quantile(X, 0.25)]) /length(X)
+B <- length(Y[Y>quantile(Y, 0.25)]) / length(Y)
+AB <- nrow(XY[XY$X > quantile(X, 0.25) & XY$Y >quantile(Y, 0.25) ,])/nrow(XY)
+
+cbind(A,B,AB)
+
+identical(A*B,AB)
+```
+
+We see that the probability of $P(A)P(B)$ does not equal $P(AB)$.  This suggests that the data are NOT independent, however, in practice, I think it would be hard to tell with a sample size of 20 observations per variable.
+
+### Chi-Square
+
+In the interest of thoroughness I'll run the test for $(X,Y)$ and $(A,B)$
+
+```{r warning=FALSE}
+
+chisq.test(X,Y,simulate.p.value = TRUE)
+
+chisq.test(X[X>quantile(X, 0.25)],Y[Y>quantile(Y, 0.25)],simulate.p.value = TRUE)
+
+```
+
+
+Given the large number of degrees of freedom and correspondingly small p-values, we can reject the null hypothesis and conclude that that the variables appear to be dependent.
+
+
+# Problem 2
+
+You are to register for Kaggle.com (free) and compete in the [House Prices: Advanced Regression Techniques competition](https://www.kaggle.com/c/house-prices-advanced-regression-techniques) and do the following:
+
+1. Descriptive and Inferential Statistics
+2. Linear Algebra and Correlation
+3. Calculus-Based Probability and Statistics
+4. Modeling
+
+## Load the Problem 2 Data
+
+```{r}
+#Load kaggle data from github
+p2.train = read.table("https://raw.githubusercontent.com/plb2018/DATA605/master/kaggle_train.csv"
+                     ,sep=",",
+                     header=T,
+                     stringsAsFactors = T)
+
+p2.test = read.table("https://raw.githubusercontent.com/plb2018/DATA605/master/kaggle_test.csv"
+                     ,sep=",",
+                     header=T)
+
+#take a quick peek @ the data
+kable(head(p2.train[,1:5],5))
+kable(head(p2.test[,11:15],5))
+```
+
+## Descriptive and Inferential Statistics
+
+Provide univariate descriptive statistics and appropriate plots for the training data set.  Provide a scatterplot matrix for at least two of the independent variables and the dependent variable. Derive a correlation matrix for any THREE quantitative variables in the dataset.  Test the hypotheses that the correlations between each pairwise set of variables is 0 and provide a 80% confidence interval.  Discuss the meaning of your analysis.  Would you be worried about familywise error? Why or why not?
+
+
+### Provide Univariate Descriptive Statistics
+
+
+Univariate and descriptive stats:
+
+```{r}
+p2.workingData <- p2.train[c('LotArea','GrLivArea','SalePrice')] 
+kable(round(describe(p2.train)[c(2,3,4,7,8,9,10,11,12,13)],2))   
+```
+
+And we'll also look at a few plots. 
+
+```{r}
+hist(p2.workingData$LotArea, main="Histogram of LotArea",xlab="LotArea",ylab="")
+hist(p2.workingData$GrLivArea, main="Histogram of GrLivArea",xlab="GrLivArea",ylab="")
+hist(p2.workingData$SalePrice, main="Histogram of Sale Price",xlab="SalePrice",ylab="")
+
+```
+
+We see a lot of skew in these few quantitative variables (including the target variable) and we can mitigate it a bit by taking the log of both of variables.  It's not perfect, but my hunch is that it may be a better way to look at data to be used in a linear regression model.
+
+```{r}
+plot(p2.workingData[c("LotArea","SalePrice")],main="LotArea vs Sale Price")
+plot(log(p2.workingData[c("LotArea","SalePrice")]),main="Log(LotArea) vs Log(Sale Price)")
+plot(log(p2.workingData[c("GrLivArea","SalePrice")]),main="Log(GrLivArea) vs Log(Sale Price)")
+
+```
+
+
+
+
+### Provide a scatter-plot matrix
+
+Here I look at both linear and log scatter-plot matricies:
+
+```{r}
+pairs(p2.workingData)
+pairs(log(p2.workingData))
+```
+
+The scatter matrix shows that there is a strong positive linear relationship between Above Grade Living Aread ("GrLivArea") and Sale price.  The relationship between LotArea and the other variables appears to be slightly positive, but not strong.  In addition, as we see above, if we look at the Log of the data, we can see a bit more.
+
+### Derive a correlation matrix
+
+Derive a correlation matrix for any THREE quantitative variables in the dataset.  Test the hypotheses that the correlations between each pairwise set of variables is 0 and provide a 80% confidence interval.  Discuss the meaning of your analysis.  Would you be worried about familywise error? Why or why not?
+
+#### Compute the Correlation matrix
+```{r}
+p2.corrData <- p2.train[c('LotArea','GrLivArea','TotalBsmtSF')] 
+cor.mat <- cor(p2.corrData)
+
+corrplot(cor.mat)
+```
+
+#### Compute the Correlation matrix
+
+
+
+```{r}
+cor.test(p2.corrData$LotArea, p2.corrData$GrLivArea, method = "pearson" , conf.level = 0.8)
+cor.test(p2.corrData$LotArea, p2.corrData$TotalBsmtSF, method = "pearson" , conf.level = 0.8)
+cor.test(p2.corrData$TotalBsmtSF, p2.corrData$GrLivArea, method = "pearson" , conf.level = 0.8)
+```
+Above we test each pariwise correlation to see if it is significantly different from zero with each case having the formulation:
+$$
+H_0 : r=0 \\
+H_a : r \ne 0 
+$$
+
+And we see that in all 3 cases, the correlation is significantly different from zero at 80% confidence.  Practically, this means that there is some relationship (though not nessecarily causal) between these variables on a pairwise basis.  This makes intuitive sense given that they are all house-area-related variables and that bigger houses likely have bigger living-space, bigger basements etc.  I believe that based on the family-wise error rate formula (FWER) shown below, we should be concerned here as the probabilty is nearly 50% (0.488) that we have at least 1 false conclusion:
+
+$FWER  \leq 1 - (1-\alpha)^c$ where $\alpha$ is the significance of the tests and $c$ is the number of comparisons performed.  In this case, we get a value of:
+
+```{r}
+FWER <- 1-(1-0.2)^3
+FWER
+```
+
+
+
+
+## Linear Algebra and Correlation
+
+Invert your 3 x 3 correlation matrix from above. (This is known as the precision matrix and contains variance inflation factors on the diagonal.) Multiply the correlation matrix by the precision matrix, and then multiply the precision matrix by the correlation matrix. Conduct LU decomposition on the matrix.  
+
+
+### Invert the correlation matrix
+
+Here we invert the correlation matrix to create a precision matrix and multiply them to see whether we get the same answer independent of order (we don't - as expected):
+
+```{r}
+precision.mat <- solve(cor.mat) 
+kable(precision.mat)
+
+pXc <-cor.mat %*% precision.mat
+cXp <- precision.mat %*% cor.mat
+
+pXc
+cXp
+identical(pXc,cXp)
+
+```
+
+### LU Decomposition 
+
+It's not clear to me which of the above matricies to run the LU Decomposition on, so I've written general code and will run it on all three! 
+
+```{r}
+LU <- function(U){
+  colnames(U) <- NULL
+  rownames(U) <- NULL
+  
+  L = diag(x = 1, ncol = ncol(U), nrow = nrow(U))  
+  for (row in 1:dim(U)[1]){
+    col = 1
+    while (col< row) {
+      L[row,col] <- U[row,col] / U[col,col]
+      U[row,] <- -1 * U[row,col]/U[col,col] * U[col,] + U[row,]
+      col = col+1
+    }
+  }
+  return(list('L' = L, 'U' = U))
+}
+
+corMat.LU <- LU(data.matrix(cor.mat))
+cXp.LU <- LU(data.matrix(cXp))
+pXc.LU<- LU(data.matrix(pXc))
+```
+
+And we display the 3 outputs:
+
+```{r}
+kable(corMat.LU)
+kable(cXp.LU)
+kable(pXc.LU)
+```
+
+
+## Calculus-Based Probability & Statistics
+
+Many times, it makes sense to fit a closed form distribution to data.  Select a variable in the Kaggle.com training dataset that is skewed to the right, shift it so that the minimum value is absolutely above zero if necessary.  Then load the MASS package and run fitdistr to fit an exponential probability density function.  (See  https://stat.ethz.ch/R-manual/R-devel/library/MASS/html/fitdistr.html ).  Find the optimal value of ??? for this distribution, and then take 1000 samples from this exponential distribution using this value (e.g., rexp(1000, ???)).  Plot a histogram and compare it with a histogram of your original variable.   Using the exponential pdf, find the 5th and 95th percentiles using the cumulative distribution function (CDF).   Also generate a 95% confidence interval from the empirical data, assuming normality.  Finally, provide the empirical 5th percentile and 95th percentile of the data.  Discuss.
+
+### Select a Variable with Right-Skew
+
+I chose to look at the sale price, which has a reasonable skew
+
+
+```{r}
+library(MASS)
+
+#select a var with right skew
+r.skew <- (p2.train$SalePrice)
+
+#plot and make sure
+hist(r.skew,main="Hist of SalePrice Showing Skew")
+```
+
+##Fit an Exponential Distribution & Create Histogram
+
+```{r}
+
+#fit and generate 100 samples
+dist.fit <- fitdistr(r.skew,densfun = "exponential")
+samples <- rexp(1000,dist.fit$estimate)
+
+#Compare histograms
+hist(r.skew, col=rgb(1,0,0,0.5), breaks = 15, main="Emperical vs Simulated")
+hist(samples, col=rgb(0,0,1,0.5),breaks = 15, add=T)
+box()
+legend("topright", legend=c("Emperical", "Simulated"),
+       col=c("red", "blue"), lty=1:2, cex=0.8)
+```
+
+
+## Compute percentiles and 95% CI
+
+In addition to the required metrics, I have also shows summary stats as I think they are helpful here:
+
+```{r}
+
+# simulated
+sim.5th <- log(1 - .05)/-dist.fit$estimate
+sim.95th <- log(1 - .95)/-dist.fit$estimate
+
+#emperical
+d.5th <- quantile(r.skew, 0.05)
+d.95th <- quantile(r.skew, 0.95)
+
+#reshape and put it into a dataframe
+c <- matrix(c(sim.5th,sim.95th,d.5th,d.95th),nrow=2)
+prob.table <- data.frame(c)
+
+#rename cols and rows
+colnames <- c('5th','95th') 
+rownames <- c('Sim','Emperical')
+rownames(prob.table) <- rownames
+colnames(prob.table) <- colnames
+kable(prob.table)
+```
+
+```{r warning=FALSE}
+#plot
+ci(r.skew,confidence = 0.95)
+describe(r.skew)
+describe(samples)
+```
+
+If we compare the data for the simulation agains the emperical data, we see that we *do not* get an ideal fit.  The emperical data has a similar mean to the simulated data, but a much higher standard deviation and median.  Looking at the histograms, we can see a distinct difference in the shapes of the distributions (simulated dist has much more mass towards zero). 
+
+Above we see a the 95% confidence interval which indicated the range in which we can be 95% confident that the mean of the population will be found.  Given the nature of the distribution (clearly not normal) I would suggest staying away from the assumption of normality in this case and using something like bootstrapping instead.  
+
+
+```{r}
+
+```
+
+## Modeling
+
+Build some type of multiple  regression  model and submit your model to the competition board.  Provide your complete model summary and results with analysis.  Report your Kaggle.com  user name and score.
+
+
+First we'll run a regression on all the data and take a look at the result.  We want to eliminate variables to the extent that we can.
+```{r}
+
+#drop anything that contains an NA
+df <- p2.train[ , apply(p2.train, 2, function(x) !any(is.na(x)))]
+
+#train a model and look @ the resuls
+m1 <- lm(SalePrice ~ ., data = df)
+```
+
+
+```{r}
+summary(m1)
+```
+
+From this we can see that it appears as though there are a few variables that are more important than others.  We'll collect those and work with them directly.  It's also worth noting that this model appears to predict a high amount of variability in the target variable ($r^2$ > 0.9) but given the number of variables, we can be reasonably confident that there's some overfitting going on here.  It appears as though we should be able to cut about 75% of the original 80 variables
+
+Importantly, I also transformed a few of teh quantitative variables, including the target variable, using the log() function as a linear model should perfom better post-transformation.
+
+
+```{r}
+df.reduced <-df[c("LotArea","Street","LandContour","LotConfig","LandSlope",
+                  "Neighborhood","Condition2","OverallQual","OverallCond",
+                  "YearBuilt","RoofMatl","ExterQual","BsmtFinSF1","BsmtFinSF2",
+                  "BsmtUnfSF","X1stFlrSF","X2ndFlrSF","KitchenAbvGr","KitchenQual",
+                  "ScreenPorch","PoolArea","SalePrice")]
+
+
+#some of these vars are pretty non-linear, so i'm going modify them:
+df.reduced$LotArea <- log(df.reduced$LotArea) 
+df.reduced$SalePrice <- log(df.reduced$SalePrice) 
+
+
+m2 <- lm(SalePrice ~ ., data = df.reduced)
+```
+
+
+```{r}
+summary(m2)
+```
+
+We see a slight reduction in model performance, but it is likely worth it given the reduction in parameters.  Next we'll use look at a few visualizations of the residuals.
+
+```{r}
+
+in.sample <- predict(m2,data=p2.train)
+plot(cbind(exp(in.sample),p2.train$SalePrice), main = "In Sample Model Result")
+hist(m2$residuals)
+qqnorm(m2$residuals)
+qqline(m2$residuals) 
+
+
+```
+
+We can see that the a first check, the in-sample result appears to show a good fit (as indicated in the summary report) however, the distribution of residuals is a bitleptokurtic and the QQ-norm plot indicates that the residuals are not normally distributed (tails appear to be long here!).  This indicates that the model likely doesn't meet the assumptions for linear regression and as such, we don't expect it to perform exceptionally well on kaggle. Based on my Kaggle performance, the model is much improved, however, using log-transformed data vs. using the raw data as is.
+
+
+### Kaggle
+
+Next we run the model on the test dataset and create an output file which can be loaded to kaggle.  We need to be careful to remember that our predictions will be in log-space and will need to be converted back in order to be coherent.
+
+```{r warning=FALSE}
+
+
+df.test <-p2.test[c("LotArea","Street","LandContour","LotConfig","LandSlope",
+                  "Neighborhood","Condition2","OverallQual","OverallCond",
+                  "YearBuilt","RoofMatl","ExterQual","BsmtFinSF1","BsmtFinSF2",
+                  "BsmtUnfSF","X1stFlrSF","X2ndFlrSF","KitchenAbvGr","KitchenQual",
+                  "ScreenPorch","PoolArea")]
+
+#need to take the log of LotArea... and remember to exp() the prediction output!
+df.test$LotArea <- log(df.test$LotArea) 
+
+
+prediction <- exp(predict(m2, newdata = df.test) )
+prediction[is.na(prediction)] <- mean(prediction, na.rm = TRUE)
+prediction.df  <- as.data.frame(cbind(p2.test$Id,prediction))
+        
+colnames(prediction.df) <- c("Id","SalePrice") 
+write.csv(prediction.df, "data_605_kaggle.csv",row.names=F)
+```
+
+
+The score for the model is ~0.134  which is not great but makes sense given the plots above and the high liklihood that the model doesn't perfectly meet the assumptions of linear regression.  This score puts me at about the 40% percentile, which is leaps and bounds better than my first attempt (97th percentile!).  My results are available under the username [plbcunyacct](https://www.kaggle.com/plbcunyacct).  Note also that I may try to improve upon this after submission, so my score may not be the same as reported here.
+
+
+
+
