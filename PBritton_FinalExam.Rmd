@@ -22,8 +22,9 @@ library(gmodels)
 library(MASS)
 ```
 
-All of the files and associated data for this final can be found on [my github here](https://github.com/plb2018/DATA605).  The required youtube video can be found [here](--add link--)
+# Housekeeping
 
+All of the files and associated data for this final can be found on [my github here](https://github.com/plb2018/DATA605).  The finished product can be found on [here on rupbs](http://rpubs.com/plb_lttfer/451317).  The required youtube video can be found [here](https://www.youtube.com/watch?v=1tJ4F5tgMt8&feature=youtu.be) and my kaggle account can be found [here](https://www.kaggle.com/plbcunyacct).
 
 
 # Problem 1
@@ -40,19 +41,15 @@ Here I load the data, choose my X & Y and compute x & y.
 p1.data = read.table("https://raw.githubusercontent.com/plb2018/DATA605/master/problem1Data.csv"
                      ,sep=",",
                      header=T)
-
 #display a few rows for inspection
 kable(head(p1.data,5))
-
 #my chosen variables
 X <- p1.data$X4
 Y <- p1.data$Y3
 XY <- as.data.frame(cbind(X,Y),colnames = c("X","Y"))
-
 #little x & y are 3rd and 1st quartiles respectively
 x <- quantile(X, 0.75)
 y <- quantile(Y, 0.25)
-
 ```
 
 ## Probability
@@ -92,7 +89,6 @@ Next we'll check computationally.  I realize that in this case, the set is so sm
 itr <- 50000
 a.obs <- 0
 b.obs <- 0
-
 for (i in 1:itr){
   a <- sample(X,1)
   b<- sample(Y,1)
@@ -104,9 +100,7 @@ for (i in 1:itr){
     }
   }
 }
-
 a.obs /b.obs
-
 ```
 
 And if we run using a random probabilities we get:
@@ -169,9 +163,7 @@ And then we check computationally.  If we run the test using the actual data we 
 ```{r}
 XY1 <- XY[XY$Y >y,]  #first condition
 XY2 <- XY1[XY1$X<x,] #second condition
-
 nrow(XY2)/nrow(XY1)
-
 ```
 
 
@@ -193,7 +185,6 @@ Once again, we see that we get 75%.
 ```{r}
 #get the data into a dataframe so we can subselect
 d <- data.frame(X,Y)
-
 #set up al the cases (done manually so as not to confuse myself)
 c1 <- dim(d[d$X <= quantile(X, 0.25) & d$Y <= quantile(Y, 0.75),])[1]
 c2 <- dim(d[d$X > quantile(X, 0.25) & d$Y <= quantile(Y, 0.75),])[1]
@@ -204,17 +195,14 @@ c6 <- c4+c5
 c7 <- c1+c4
 c8 <- c2+c5 
 c9 <- c3+c6
-
 #reshape and put it into a dataframe
 c <- matrix(c(c1,c2,c3,c4,c5,c6,c7,c8,c9),nrow=3)
 prob.table <- data.frame(c)
-
 #rename cols and rows
 colnames <- c('<= 3rd quartile','> 3rd quartile','Total') 
 rownames <- c('<= 1st quartile','>1st quartile','Total')
 rownames(prob.table) <- rownames
 colnames(prob.table) <- colnames
-
 #plot
 kable(prob.table)
 ```
@@ -229,13 +217,10 @@ Does splitting the training data in this fashion make them independent? Let A be
 If we run the actual numbers, we get the following:
 
 ```{r}
-
 A <- length(X[X>quantile(X, 0.25)]) /length(X)
 B <- length(Y[Y>quantile(Y, 0.25)]) / length(Y)
 AB <- nrow(XY[XY$X > quantile(X, 0.25) & XY$Y >quantile(Y, 0.25) ,])/nrow(XY)
-
 cbind(A,B,AB)
-
 identical(A*B,AB)
 ```
 
@@ -246,11 +231,8 @@ We see that the probability of $P(A)P(B)$ does not equal $P(AB)$.  This suggests
 In the interest of thoroughness I'll run the test for $(X,Y)$ and $(A,B)$
 
 ```{r warning=FALSE}
-
 chisq.test(X,Y,simulate.p.value = TRUE)
-
 chisq.test(X[X>quantile(X, 0.25)],Y[Y>quantile(Y, 0.25)],simulate.p.value = TRUE)
-
 ```
 
 
@@ -274,11 +256,9 @@ p2.train = read.table("https://raw.githubusercontent.com/plb2018/DATA605/master/
                      ,sep=",",
                      header=T,
                      stringsAsFactors = T)
-
 p2.test = read.table("https://raw.githubusercontent.com/plb2018/DATA605/master/kaggle_test.csv"
                      ,sep=",",
                      header=T)
-
 #take a quick peek @ the data
 kable(head(p2.train[,1:5],5))
 kable(head(p2.test[,11:15],5))
@@ -305,7 +285,6 @@ And we'll also look at a few plots.
 hist(p2.workingData$LotArea, main="Histogram of LotArea",xlab="LotArea",ylab="")
 hist(p2.workingData$GrLivArea, main="Histogram of GrLivArea",xlab="GrLivArea",ylab="")
 hist(p2.workingData$SalePrice, main="Histogram of Sale Price",xlab="SalePrice",ylab="")
-
 ```
 
 We see a lot of skew in these few quantitative variables (including the target variable) and we can mitigate it a bit by taking the log of both of variables.  It's not perfect, but my hunch is that it may be a better way to look at data to be used in a linear regression model.
@@ -314,7 +293,6 @@ We see a lot of skew in these few quantitative variables (including the target v
 plot(p2.workingData[c("LotArea","SalePrice")],main="LotArea vs Sale Price")
 plot(log(p2.workingData[c("LotArea","SalePrice")]),main="Log(LotArea) vs Log(Sale Price)")
 plot(log(p2.workingData[c("GrLivArea","SalePrice")]),main="Log(GrLivArea) vs Log(Sale Price)")
-
 ```
 
 
@@ -339,7 +317,6 @@ Derive a correlation matrix for any THREE quantitative variables in the dataset.
 ```{r}
 p2.corrData <- p2.train[c('LotArea','GrLivArea','TotalBsmtSF')] 
 cor.mat <- cor(p2.corrData)
-
 corrplot(cor.mat)
 ```
 
@@ -382,14 +359,11 @@ Here we invert the correlation matrix to create a precision matrix and multiply 
 ```{r}
 precision.mat <- solve(cor.mat) 
 kable(precision.mat)
-
 pXc <-cor.mat %*% precision.mat
 cXp <- precision.mat %*% cor.mat
-
 pXc
 cXp
 identical(pXc,cXp)
-
 ```
 
 ### LU Decomposition 
@@ -412,7 +386,6 @@ LU <- function(U){
   }
   return(list('L' = L, 'U' = U))
 }
-
 corMat.LU <- LU(data.matrix(cor.mat))
 cXp.LU <- LU(data.matrix(cXp))
 pXc.LU<- LU(data.matrix(pXc))
@@ -420,10 +393,26 @@ pXc.LU<- LU(data.matrix(pXc))
 
 And we display the 3 outputs:
 
+
+#### Correlation Mat U&L
+
 ```{r}
-kable(corMat.LU)
-kable(cXp.LU)
-kable(pXc.LU)
+kable(as.data.frame(corMat.LU$U))
+kable(as.data.frame(corMat.LU$L))
+```
+
+#### C X P Mat U&L
+
+```{r}
+kable(as.data.frame(cXp.LU$U))
+kable(as.data.frame(cXp.LU$L))
+```
+
+#### P X C Mat U&L
+
+```{r}
+kable(as.data.frame(pXc.LU$U))
+kable(as.data.frame(pXc.LU$L))
 ```
 
 
@@ -438,10 +427,8 @@ I chose to look at the sale price, which has a reasonable skew
 
 ```{r}
 library(MASS)
-
 #select a var with right skew
 r.skew <- (p2.train$SalePrice)
-
 #plot and make sure
 hist(r.skew,main="Hist of SalePrice Showing Skew")
 ```
@@ -449,11 +436,9 @@ hist(r.skew,main="Hist of SalePrice Showing Skew")
 ##Fit an Exponential Distribution & Create Histogram
 
 ```{r}
-
 #fit and generate 100 samples
 dist.fit <- fitdistr(r.skew,densfun = "exponential")
 samples <- rexp(1000,dist.fit$estimate)
-
 #Compare histograms
 hist(r.skew, col=rgb(1,0,0,0.5), breaks = 15, main="Emperical vs Simulated")
 hist(samples, col=rgb(0,0,1,0.5),breaks = 15, add=T)
@@ -468,19 +453,15 @@ legend("topright", legend=c("Emperical", "Simulated"),
 In addition to the required metrics, I have also shows summary stats as I think they are helpful here:
 
 ```{r}
-
 # simulated
 sim.5th <- log(1 - .05)/-dist.fit$estimate
 sim.95th <- log(1 - .95)/-dist.fit$estimate
-
 #emperical
 d.5th <- quantile(r.skew, 0.05)
 d.95th <- quantile(r.skew, 0.95)
-
 #reshape and put it into a dataframe
 c <- matrix(c(sim.5th,sim.95th,d.5th,d.95th),nrow=2)
 prob.table <- data.frame(c)
-
 #rename cols and rows
 colnames <- c('5th','95th') 
 rownames <- c('Sim','Emperical')
@@ -502,7 +483,6 @@ Above we see a the 95% confidence interval which indicated the range in which we
 
 
 ```{r}
-
 ```
 
 ## Modeling
@@ -512,10 +492,8 @@ Build some type of multiple  regression  model and submit your model to the comp
 
 First we'll run a regression on all the data and take a look at the result.  We want to eliminate variables to the extent that we can.
 ```{r}
-
 #drop anything that contains an NA
 df <- p2.train[ , apply(p2.train, 2, function(x) !any(is.na(x)))]
-
 #train a model and look @ the resuls
 m1 <- lm(SalePrice ~ ., data = df)
 ```
@@ -536,13 +514,9 @@ df.reduced <-df[c("LotArea","Street","LandContour","LotConfig","LandSlope",
                   "YearBuilt","RoofMatl","ExterQual","BsmtFinSF1","BsmtFinSF2",
                   "BsmtUnfSF","X1stFlrSF","X2ndFlrSF","KitchenAbvGr","KitchenQual",
                   "ScreenPorch","PoolArea","SalePrice")]
-
-
 #some of these vars are pretty non-linear, so i'm going modify them:
 df.reduced$LotArea <- log(df.reduced$LotArea) 
 df.reduced$SalePrice <- log(df.reduced$SalePrice) 
-
-
 m2 <- lm(SalePrice ~ ., data = df.reduced)
 ```
 
@@ -554,14 +528,11 @@ summary(m2)
 We see a slight reduction in model performance, but it is likely worth it given the reduction in parameters.  Next we'll use look at a few visualizations of the residuals.
 
 ```{r}
-
 in.sample <- predict(m2,data=p2.train)
 plot(cbind(exp(in.sample),p2.train$SalePrice), main = "In Sample Model Result")
 hist(m2$residuals)
 qqnorm(m2$residuals)
 qqline(m2$residuals) 
-
-
 ```
 
 We can see that the a first check, the in-sample result appears to show a good fit (as indicated in the summary report) however, the distribution of residuals is a bitleptokurtic and the QQ-norm plot indicates that the residuals are not normally distributed (tails appear to be long here!).  This indicates that the model likely doesn't meet the assumptions for linear regression and as such, we don't expect it to perform exceptionally well on kaggle. Based on my Kaggle performance, the model is much improved, however, using log-transformed data vs. using the raw data as is.
@@ -572,18 +543,13 @@ We can see that the a first check, the in-sample result appears to show a good f
 Next we run the model on the test dataset and create an output file which can be loaded to kaggle.  We need to be careful to remember that our predictions will be in log-space and will need to be converted back in order to be coherent.
 
 ```{r warning=FALSE}
-
-
 df.test <-p2.test[c("LotArea","Street","LandContour","LotConfig","LandSlope",
                   "Neighborhood","Condition2","OverallQual","OverallCond",
                   "YearBuilt","RoofMatl","ExterQual","BsmtFinSF1","BsmtFinSF2",
                   "BsmtUnfSF","X1stFlrSF","X2ndFlrSF","KitchenAbvGr","KitchenQual",
                   "ScreenPorch","PoolArea")]
-
 #need to take the log of LotArea... and remember to exp() the prediction output!
 df.test$LotArea <- log(df.test$LotArea) 
-
-
 prediction <- exp(predict(m2, newdata = df.test) )
 prediction[is.na(prediction)] <- mean(prediction, na.rm = TRUE)
 prediction.df  <- as.data.frame(cbind(p2.test$Id,prediction))
@@ -593,8 +559,8 @@ write.csv(prediction.df, "data_605_kaggle.csv",row.names=F)
 ```
 
 
-The score for the model is ~0.134  which is not great but makes sense given the plots above and the high liklihood that the model doesn't perfectly meet the assumptions of linear regression.  This score puts me at about the 40% percentile, which is leaps and bounds better than my first attempt (97th percentile!).  My results are available under the username [plbcunyacct](https://www.kaggle.com/plbcunyacct).  Note also that I may try to improve upon this after submission, so my score may not be the same as reported here.
+The score for the model is ~0.134  which is not great but makes sense given the plots above and the high liklihood that the model doesn't perfectly meet the assumptions of linear regression.  This score puts me at about the 40% percentile, which is leaps and bounds better than my first attempt (97th percentile!).  My results are available under the username [plbcunyacct](https://www.kaggle.com/plbcunyacct).  Note also that I may try to improve upon this after the submission of this assignment, so my score may not be the same as reported here.  See my progression below:
 
-
+![Kaggle History](kaggleHistory.PNG)
 
 
